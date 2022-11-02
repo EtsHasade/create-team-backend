@@ -21,7 +21,9 @@ connect()
 async function runSQL(query) {
     try {
         if (!connection) await connect()
+        console.log('RUN SQL:\n' + query);
         const [results] = await connection.query(query)
+        console.log("🚀 ~ file: DBService.js ~ runSQL ~ results", results)
         return results
     } catch (error) {
         throw error

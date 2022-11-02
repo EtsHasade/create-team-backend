@@ -1,104 +1,84 @@
-
-const dbService = require('../../services/db.service')
-// const teamService = require('../team/team.service')
-// const ObjectId = require('mongodb').ObjectId
-
-const USER_COLLECTION = 'user';
-
-module.exports = {
-    query,
-    getById,
-    getByEmail,
-    remove,
-    update,
-    add
-}
+const DBService = require('../../services/DBService')
+const sqlUtilService = require('../../services/sqlUtil.service')
 
 
-async function query(filterBy = {}) {
-    const criteria = _buildCriteria(filterBy)
+async function query(criteria = {}) {
+    const namePart = criteria.txt || ''
+    const txtFieldsList = ['username', 'email'].join('+')
+    const query = `SELECT * 
+                 FROM user
+                 WHERE (${txtFieldsList}) LIKE '%${namePart}%'`
     try {
-        const collection = await dbService.getCollection(USER_COLLECTION)
-        const users = await collection.find(criteria).toArray();
-        return users
-    } catch (err) {
-        console.log('ERROR: cannot find users')
-        throw err;
+        const users = await DBService.runSQL(query)
+        return users.map(user => _getJsUser(user))
+    } catch (error) {
+        throw error
     }
 }
 
 async function getById(userId) {
-    try {
-        const collection = await dbService.getCollection(USER_COLLECTION)
-        const user = await collection.findOne({ '_id': ObjectId(userId) })
-        delete user.password
+    const query = `SELECT * 
+                 FROM user
+                 WHERE id = ${userId}`
 
-        user.teams = await teamService.query({ userId: ObjectId(user._id) })
-        // user.teams = user.teams.map(team => {
-        //  // good place to map the teams in user for display
-        //     return team
-        // })
-
-        return user
-    } catch (err) {
-        console.log(`ERROR: while finding user ${userId}`)
-        throw err;
-    }
+    const [user] = await DBService.runSQL(query)
+    if (user) return _getJsUser(user)
+    throw new Error(`user id ${userId} not found`)
 }
 
-async function getByEmail(email) {
-    try {
-        const collection = await dbService.getCollection(USER_COLLECTION)
-        const user = await collection.findOne({ email })
-        return user
-    } catch (err) {
-        console.log(`ERROR: while finding user ${email}`)
-        throw err;
-    }
+
+ async function add(user) {
+    const query = `INSERT INTO user (name, email, password) 
+                 VALUES ("${user.name}",
+                         "${user.email}",
+                         "${user.password}")`
+
+    return await DBService.runSQL(query)
 }
 
-async function remove(userId) {
-    try {
-        const collection = await dbService.getCollection(USER_COLLECTION)
-        await collection.deleteOne({ '_id': ObjectId(userId) })
-    } catch (err) {
-        console.log(`ERROR: cannot remove user ${userId}`)
-        throw err;
-    }
-}
 
 async function update(user) {
-    user._id = ObjectId(user._id);
+    const query = `UPDATE user SET
+                        name = "${user.name}",
+                        email = "${user.email}",
+                        isActive = "${user.isActive}",
+                 WHERE id = ${user.id}`
     try {
-        const collection = await dbService.getCollection(USER_COLLECTION)
-        await collection.replaceOne({ _id: user._id }, { $set: user })
-        return user
-    } catch (err) {
-        console.log(`ERROR: cannot update user ${user._id}`)
-        throw err;
+        const okPacket = await DBService.runSQL(query)
+        if (okPacket.affectedRows !== 0) return okPacket
+        throw new Error(`No user updated - user id ${user.id}`)
+    } catch (error) {
+        throw error
     }
 }
 
-async function add(user) {
-    const collection = await dbService.getCollection(USER_COLLECTION)
+
+async function remove(userId) {
+    const query = `DELETE FROM user
+                 WHERE id = ${userId}`
     try {
-        await collection.insertOne(user);
-        return user;
-    } catch (err) {
-        console.log(`ERROR: cannot insert user`)
-        throw err;
+        const okPacket = await DBService.runSQL(query)
+        if (okPacket.affectedRows === 1) return okPacket
+        else throw new Error(`No user deleted - user id ${userId}`)
+    } catch (error) {
+        throw new Error(`No user deleted - user id ${userId}`)
     }
 }
 
-function _buildCriteria(filterBy) {
-    const criteria = {};
-    if (filterBy.txt) {
-        criteria.username = filterBy.txt
+function _getJsUser(user) {
+    return {
+        ...user,
+        createdAt: sqlUtilService.getJsTimestamp(user.createdAt),
+        isActive: !!user.isActive,
+        isAdmin: !!user.isAdmin,
     }
-    if (filterBy.minBalance) {
-        criteria.balance = { $gte: +filterBy.minBalance }
-    }
-    return criteria;
 }
 
+module.exports = {
+    query,
+    getById,
+    add,
+    update,
+    remove
+}
 

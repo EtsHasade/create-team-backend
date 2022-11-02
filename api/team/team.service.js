@@ -1,20 +1,30 @@
+const memberService = require('./teamMember.service')
 const DBService = require('../../services/DBService')
 const sqlUtilService = require('../../services/sqlUtil.service')
 
 
-async function query(criteria = {}) {
-    const namePart = criteria.txt || ''
-    const txtFieldsList = ['name', 'description'].join('+')
-    const query = `SELECT * 
-                 FROM team
-                 WHERE (${txtFieldsList}) LIKE '%${namePart}%'`
+async function query(criteria) {
+    let sql = `SELECT * 
+               FROM team
+               `
+
+    sql += sqlUtilService.getWhereSql(criteria)
+
     try {
-        const teams = await DBService.runSQL(query)
-        return teams.map(team => _getJsTeam(team))
+        const teams = await DBService.runSQL(sql)
+        if (teams.length) {
+            for (const team of teams) {
+                team.members = await memberService.query({ teamId: team.id })
+
+            }
+            return teams.map(team => _getJsTeam(team))
+        }
+        return []
     } catch (error) {
         throw error
     }
 }
+
 
 async function getById(teamId) {
     const query = `SELECT * 
@@ -22,19 +32,28 @@ async function getById(teamId) {
                  WHERE id = ${teamId}`
 
     const [team] = await DBService.runSQL(query)
-    if (team) return _getJsTeam(team)
+    if (team) {
+        team.members = await memberService.query({ teamId: team.id })
+        return _getJsTeam(team)
+    }
     throw new Error(`team id ${teamId} not found`)
 }
 
 
- async function add(team) {
-    const query = `INSERT INTO team (name, description, projectId, creatorId) 
-                 VALUES ("${team.name}",
-                         "${team.desc}",
-                         "${team.projectId}",
-                         "${team.creatorId}")`
+async function add(team) {
+    const teamFieldsStr = `("${team.name}","${team.desc}",${team.projectId},${team.creatorId})`
+    const sql = `INSERT INTO team (name, description, projectId, creatorId) 
+                 VALUES ${teamFieldsStr};`
 
-    return await DBService.runSQL(query)
+    const { insertId } = await DBService.runSQL(sql)
+    if (!insertId) throw new Error(`Cannot add team: ${teamFieldsStr}`)
+    team.id = insertId
+    if (team.members.length) {
+        console.log('set members: ', team.members);
+        await memberService.addMulti(team.id, team.members)
+        team.members = await memberService.query({teamId: team.id})
+    }
+    return team
 }
 
 
@@ -42,12 +61,15 @@ async function update(team) {
     const query = `UPDATE team SET
                         name = "${team.name}",
                         description = "${team.description}",
-                        isActive = "${team.isActive}",
-                 WHERE id = ${team.id}`
+                        projectId = ${team.projectId}
+                    WHERE id = ${team.id};
+                    `
     try {
         const okPacket = await DBService.runSQL(query)
-        if (okPacket.affectedRows !== 0) return okPacket
-        throw new Error(`No team updated - team id ${team.id}`)
+        if (okPacket.affectedRows < 1) throw new Error(`No team updated - team id ${team.id}`)
+        await memberService.updateTeamMembers(team.id, team.members)
+        return okPacket
+
     } catch (error) {
         throw error
     }
@@ -67,11 +89,11 @@ async function remove(teamId) {
 }
 
 function _getJsTeam(team) {
+    console.log("🚀 ~ file: team.service.js ~ line 84 ~ _getJsTeam ~ team", team)
+
     return {
         ...team,
         createdAt: sqlUtilService.getJsTimestamp(team.createdAt),
-        isActive: !!team.isActive,
-        isAdmin: !!team.isAdmin,
     }
 }
 
