@@ -1,107 +1,85 @@
+const DBService = require('../../services/DBService')
+const sqlUtilService = require('../../services/sqlUtil.service')
 
-const dbService = require('../../services/db.service')
-const ObjectId = require('mongodb').ObjectId
 
-const TEAM_COLLECTION = 'team';
-
-module.exports = {
-    query,
-    getById,
-    getByEmail,
-    remove,
-    update,
-    add
-}
-
-async function query(filterBy = {}) {
-    const criteria = _buildCriteria(filterBy)
+async function query(criteria = {}) {
+    const namePart = criteria.txt || ''
+    const txtFieldsList = ['name', 'description'].join('+')
+    const query = `SELECT * 
+                 FROM team
+                 WHERE (${txtFieldsList}) LIKE '%${namePart}%'`
     try {
-        const collection = await dbService.getCollection(TEAM_COLLECTION)
-        const teams = await collection.find(criteria).toArray();
-        return teams
-    } catch (err) {
-        console.log('ERROR: cannot find teams')
-        throw err;
+        const teams = await DBService.runSQL(query)
+        return teams.map(team => _getJsTeam(team))
+    } catch (error) {
+        throw error
     }
 }
 
 async function getById(teamId) {
-    try {
-        const collection = await dbService.getCollection(TEAM_COLLECTION)
-        const team = await collection.findOne({ '_id': ObjectId(teamId) })
-        return team
+    const query = `SELECT * 
+                 FROM team
+                 WHERE id = ${teamId}`
 
-    } catch (err) {
-        console.log(`ERROR: while finding team ${teamId}`)
-        throw err;
-    }
+    const [team] = await DBService.runSQL(query)
+    if (team) return _getJsTeam(team)
+    throw new Error(`team id ${teamId} not found`)
 }
 
-async function getByEmail(email) {
-    try {
-        const collection = await dbService.getCollection(TEAM_COLLECTION)
-        const team = await collection.findOne({ email })
-        return team
-    } catch (err) {
-        console.log(`ERROR: while finding team ${email}`)
-        throw err;
-    }
+
+ async function add(team) {
+    const query = `INSERT INTO team (name, description, projectId, creatorId) 
+                 VALUES ("${team.name}",
+                         "${team.desc}",
+                         "${team.projectId}",
+                         "${team.creatorId}")`
+
+    return await DBService.runSQL(query)
 }
 
-async function remove(teamId) {
-    try {
-        const collection = await dbService.getCollection(TEAM_COLLECTION)
-        await collection.deleteOne({ '_id': ObjectId(teamId) })
-    } catch (err) {
-        console.log(`ERROR: cannot remove team ${teamId}`)
-        throw err;
-    }
-}
 
 async function update(team) {
-    team._id = ObjectId(team._id);
+    const query = `UPDATE team SET
+                        name = "${team.name}",
+                        description = "${team.description}",
+                        isActive = "${team.isActive}",
+                 WHERE id = ${team.id}`
     try {
-        const collection = await dbService.getCollection(TEAM_COLLECTION)
-        await collection.replaceOne({ _id: team._id }, { $set: team })
-        return team
-    } catch (err) {
-        console.log(`ERROR: cannot update team ${team._id}`)
-        throw err;
+        const okPacket = await DBService.runSQL(query)
+        if (okPacket.affectedRows !== 0) return okPacket
+        throw new Error(`No team updated - team id ${team.id}`)
+    } catch (error) {
+        throw error
     }
 }
 
-async function add(team) {
-    team.createdAt = Date.now()
-    const collection = await dbService.getCollection(TEAM_COLLECTION)
+
+async function remove(teamId) {
+    const query = `DELETE FROM team
+                 WHERE id = ${teamId}`
     try {
-        await collection.insertOne(team);
-        return team;
-    } catch (err) {
-        console.log(`ERROR: cannot insert team`)
-        throw err;
+        const okPacket = await DBService.runSQL(query)
+        if (okPacket.affectedRows === 1) return okPacket
+        else throw new Error(`No team deleted - team id ${teamId}`)
+    } catch (error) {
+        throw new Error(`No team deleted - team id ${teamId}`)
     }
 }
 
-function _buildCriteria(filterBy) {
-    const criteria = {};
-    if (filterBy.userId) {
-        if (filterBy.status) {
-            criteria.members = { _id: filterBy.userId, status: filterBy.status }
-        } else {
-            criteria['members._id'] = filterBy.userId
-        }
+function _getJsTeam(team) {
+    return {
+        ...team,
+        createdAt: sqlUtilService.getJsTimestamp(team.createdAt),
+        isActive: !!team.isActive,
+        isAdmin: !!team.isAdmin,
     }
-    if (filterBy.creatorId) {
-        criteria.members = { _id: filterBy.creatorId, status: 'creator' }
-    }
-    if (filterBy.invitedId) {
-        criteria.members = { _id: filterBy.invitedId, status: 'invited' }
-    }
-    if (filterBy.status) {
-        criteria['members.status'] = filterBy.status
-    }
-
-    return criteria;
 }
 
+module.exports = {
+    query,
+    getById,
+    add,
+    update,
+    remove
+}
 

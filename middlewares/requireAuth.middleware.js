@@ -10,7 +10,7 @@ async function requireAuth(req, res, next) {
     next();
     return
   }
-  if (!req.session || !req.session.user) {
+  if (!req.session?.user?._id) {
     res.status(401).end('Unauthorized!');
     return;
   }

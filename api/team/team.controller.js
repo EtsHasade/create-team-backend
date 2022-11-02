@@ -15,7 +15,7 @@ async function getTeams(req, res) {
 
 async function deleteTeam(req, res) {
     await teamService.remove(req.params.id)
-    res.end()
+    res.send()
 }
 
 async function updateTeam(req, res) {
@@ -27,10 +27,9 @@ async function updateTeam(req, res) {
 
 async function addTeam(req, res) {
     var team = req.body;
-    // team.byUserId = req.session.user._id;
+    // team.creatorId = req.session?.user?._id || null
+    team.creatorId = req.session?.user?._id || 1
     team = await teamService.add(team)
-    // team.byUser = req.session.user;
-    // team.aboutUser = {}
     res.send(team)
 }
 
