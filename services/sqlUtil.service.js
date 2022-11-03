@@ -35,8 +35,10 @@ async function removeMultiWhere(tableName, fieldName, fieldValue, { exceptFieldN
     let sql = `DELETE FROM ${tableName}
                  WHERE (${fieldName} = ${fieldValue})`
 
-    const exceptSql = `AND(${exceptFieldName} NOT IN(${exceptValues?.join()}))`
-    if (exceptFieldName && exceptValues?.length) sql += exceptSql
+    if (exceptFieldName && exceptValues?.length) {
+        const exceptSql = ` AND (${exceptFieldName} NOT IN(${exceptValues.join()}))`
+        sql += exceptSql
+    }
 
     try {
         const okPacket = await DBService.runSQL(sql)
@@ -51,7 +53,7 @@ async function removeMultiWhere(tableName, fieldName, fieldValue, { exceptFieldN
 function getWhereSql(criteria, txtFields = ['name', 'description']) {
     if (typeof criteria !== 'object') return ''
     if (!Object.keys(criteria).length) return ''
-    
+
     let whereSql = ' WHERE 1=1'
     if (criteria.txt) {
         const namePart = criteria.txt || ''

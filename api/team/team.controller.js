@@ -3,7 +3,8 @@ const logger = require('../../services/logger.service')
 
 async function getTeam(req, res) {
     const team = await teamService.getById(req.params.id)
-    res.send(team)
+    if (team) res.send(team)
+    res.end()
 }
   
 async function getTeams(req, res) {
