@@ -1,6 +1,6 @@
-const memberService = require('./projectMember.service')
 const sqlUtilService = require('../../services/sqlUtil.service')
-const { createEntityService } = require('../../services/sqlCRUDL/entity.service.js')
+const EntityCRUDService = require('../../services/sqlCRUDL/entity.service')
+const EntitiesRelationshipService = require('../../services/sqlCRUDL/entityRelationship.service')
 
 const projectOptions = {
     tableName: 'project',
@@ -10,19 +10,26 @@ const projectOptions = {
     txtFields: ['name', 'description'],  
     getOutputEntity: _convertToJsProject  
 }
-const membersOptions = {
-    relatedThingName: 'member',
-    relationshipService: memberService
-}
-const projectService = createEntityService(projectOptions, membersOptions)
+const projectCRUDService = new EntityCRUDService(projectOptions)
 
-module.exports = {
-    query: projectService.query,
-    getById: projectService.getById,
-    add: projectService.add,
-    update: projectService.update,
-    remove: projectService.remove
+
+const projectMemberOptions = {
+    tableName: 'projectMember',
+    entityName: 'member',
+    createFields: ['userId', 'invited', 'interested'],
+    updateFields: ['invited', 'interested'],
+    getOutputThing: _getJsMember
 }
+const projectMemberCRUDService = new EntityCRUDService(projectMemberOptions)
+
+const projectService = new EntitiesRelationshipService(
+    projectCRUDService,
+    projectMemberCRUDService,
+    'members',
+    'projectId'
+)
+
+module.exports = projectService
 
 
 function _convertToJsProject(sqlProject) {
@@ -32,3 +39,13 @@ function _convertToJsProject(sqlProject) {
         createdAt: sqlUtilService.getJsTimestamp(sqlProject.createdAt),
     }
 }
+
+
+function _getJsMember(member) {
+    return {
+        ...member,
+        invited: !!member.invited,
+        interested: !!member.interested,
+    }
+}
+

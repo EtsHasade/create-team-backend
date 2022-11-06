@@ -30,5 +30,10 @@ module.exports = {
     },
     error(line){
         doLog(line, "Error")
+    },
+    dev(line){
+        if (process.env.NODE_ENV !== 'production'){
+            doLog(line, 'dev')
+        }
     }
 }

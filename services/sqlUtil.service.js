@@ -4,7 +4,9 @@ module.exports = {
     getSqlTimestamp,
     getJsTimestamp,
     removeMultiWhere,
-    getWhereSql
+    getWhereSql,
+    getValueStrs,
+    getOutputThing
 }
 
 function getSqlTimestamp(jsTimestemp = Date.now()) {
@@ -14,7 +16,6 @@ function getSqlTimestamp(jsTimestemp = Date.now()) {
 
 
 function getJsTimestamp(sqlTimestemp) {
-    console.log("🚀 ~ file: sqlUtil.service.js ~ line 13 ~ getJsTimestamp ~ sqlTimestemp", sqlTimestemp)
     if (!sqlTimestemp) return Date.now()
     const timestemp = new Date(sqlTimestemp).getTime()
     if (!isNaN(timestemp)) return timestemp
@@ -29,21 +30,17 @@ function getJsTimestamp(sqlTimestemp) {
 }
 
 
-async function removeMultiWhere(tableName, fieldName, fieldValue, { exceptFieldName, exceptValues }) {
-
-    console.log(tableName, fieldName, fieldValue);
+async function removeMultiWhere(tableName, criteria, except) {
     let sql = `DELETE FROM ${tableName}
-                 WHERE (${fieldName} = ${fieldValue})`
+               `
+    sql += getWhereSql(criteria)
 
-    if (exceptFieldName && exceptValues?.length) {
+    if (except?.exceptFieldName && except?.exceptValues?.length) {
         const exceptSql = ` AND (${exceptFieldName} NOT IN(${exceptValues.join()}))`
         sql += exceptSql
     }
-
     try {
         const okPacket = await DBService.runSQL(sql)
-        console.log('After remove - okPacket:', okPacket);
-
         return okPacket
     } catch (error) {
         throw new Error(`Cannot deleted - rows in table "${tableName}" by: field "${fieldName}" = "${fieldValue}"`)
@@ -51,18 +48,40 @@ async function removeMultiWhere(tableName, fieldName, fieldValue, { exceptFieldN
 }
 
 function getWhereSql(criteria, txtFields = ['name', 'description']) {
+    criteria = {...criteria}
     if (typeof criteria !== 'object') return ''
     if (!Object.keys(criteria).length) return ''
 
     let whereSql = ' WHERE 1=1'
-    if (criteria.txt) {
+    if (criteria.txt && txtFields) {
         const namePart = criteria.txt || ''
         const txtFieldsStr = ` AND (${txtFields.map(field => `${field} LIKE '%${namePart}%'`).join(' OR ')} )`
         delete criteria.txt
         whereSql += txtFieldsStr
     }
+    else delete criteria.txt
+
     const criteriaStr = Object.keys(criteria).map(key => `${key} = "${criteria[key]}"`).join(' AND ')
     if (criteriaStr) whereSql += ` AND (${criteriaStr})`
 
     return whereSql
+}
+
+
+function getValueStrs(entity, fieldNames, txtFields) {
+    const values = fieldNames.map(fieldName => {
+        const isTxt = txtFields.includes(fieldName)
+        return isTxt ? `"${entity[fieldName]}"` : entity[fieldName]
+    })
+    return values
+}
+
+function getOutputThing(entity) {
+    const outputThing = {
+        ...entity
+    }
+    if (entity.createdAt) {
+        outputThing.createdAt = sqlUtilService.getJsTimestamp(entity.createdAt)
+    }
+    return outputThing
 }

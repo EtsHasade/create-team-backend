@@ -2,27 +2,60 @@ const teamService = require('./team.service')
 const logger = require('../../services/logger.service')
 
 async function getTeam(req, res) {
-    const team = await teamService.getById(req.params.id)
-    if (team) res.send(team)
-    res.end()
+    try {
+        const team = await teamService.getById(req.params.id)
+        if (team) res.send(team)
+        res.end()
+    } catch (error) {
+        res.status(404).end()
+    }
 }
-  
+
 async function getTeams(req, res) {
-    console.log(req.query);
-    const teams = await teamService.query(req.query)
-    logger.debug(teams);
-    res.send(teams)
+    try {
+        const teams = await teamService.query(req.query)
+        res.send(teams)
+    } catch (error) {
+        res.status(404).end()
+    }
+}
+
+async function getTeamFull(req, res) {
+    try {
+        const team = await teamService.getByIdFull(req.params.id)
+        if (team) res.send(team)
+        res.end()
+    } catch (error) {
+        res.status(404).end()
+    }
+}
+
+async function getTeamsFull(req, res) {
+    try {
+        const teams = await teamService.queryFull(req.query)
+        res.send(teams)
+    } catch (error) {
+        res.status(404).end()
+    }
 }
 
 async function deleteTeam(req, res) {
-    await teamService.remove(req.params.id)
-    res.send()
+    try {
+        await teamService.remove(req.params.id)
+        res.send()
+    } catch (error) {
+        res.status(404).end()
+    }
 }
 
 async function updateTeam(req, res) {
-    const team = req.body;
-    await teamService.update(team)
-    res.send(team)
+    try {
+        const team = req.body;
+        await teamService.update(team)
+        res.send(team)
+    } catch (error) {
+     res.status(404).end()   
+    }
 }
 
 
@@ -40,5 +73,7 @@ module.exports = {
     getTeams,
     deleteTeam,
     addTeam,
-    updateTeam
+    updateTeam,
+    getTeamFull,
+    getTeamsFull
 }

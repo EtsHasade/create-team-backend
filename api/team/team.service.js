@@ -1,33 +1,39 @@
-const memberService = require('./teamMember.service')
-const sqlUtilService = require('../../services/sqlUtil.service')
-const { createEntityService } = require('../../services/sqlCRUDL/entity.service.js')
+const EntityCRUDService = require('../../services/sqlCRUDL/entity.service')
+const EntitiesRelationshipService = require('../../services/sqlCRUDL/entityRelationship.service')
 
 const teamOptions = {
     tableName: 'team',
     entityName: 'team',
     createFields: ['name', 'description', 'projectId', 'creatorId'],
     updateFields: ['name', 'description', 'projectId'],
-    txtFields: ['name', 'description'],  
-    getOutputEntity: _convertToJsTeam  
-}
-const membersOptions = {
-    relatedThingName: 'member',
-    relationshipService: memberService
-}
-const teamService = createEntityService(teamOptions, membersOptions)
-
-module.exports = {
-    query: teamService.query,
-    getById: teamService.getById,
-    add: teamService.add,
-    update: teamService.update,
-    remove: teamService.remove
+    txtFields: ['name', 'description'],
+    // getOutputEntity: _convertToJsTeam  
 }
 
+const teamCRUDService = new EntityCRUDService(teamOptions)
 
-function _convertToJsTeam(sqlTeam) {
+const teamMemberOptions = {
+    tableName: 'teamMember',
+    entityName: 'member',
+    createFields: ['userId', 'invited', 'interested'],
+    updateFields: ['invited', 'interested'],
+    getOutputThing: _getJsMember
+}
+const teamMemberCRUDService = new EntityCRUDService(teamMemberOptions)
+
+const teamService = new EntitiesRelationshipService(
+    teamCRUDService,
+    teamMemberCRUDService,
+    'members',
+    'teamId'
+)
+
+module.exports = teamService
+
+function _getJsMember(member) {
     return {
-        ...sqlTeam,
-        createdAt: sqlUtilService.getJsTimestamp(sqlTeam.createdAt),
+        ...member,
+        invited: !!member.invited,
+        interested: !!member.interested,
     }
 }
