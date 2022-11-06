@@ -13,26 +13,10 @@ async function getTeam(req, res) {
 
 async function getTeams(req, res) {
     try {
-        const teams = await teamService.query(req.query)
-        res.send(teams)
-    } catch (error) {
-        res.status(404).end()
-    }
-}
-
-async function getTeamFull(req, res) {
-    try {
-        const team = await teamService.getByIdFull(req.params.id)
-        if (team) res.send(team)
-        res.end()
-    } catch (error) {
-        res.status(404).end()
-    }
-}
-
-async function getTeamsFull(req, res) {
-    try {
-        const teams = await teamService.queryFull(req.query)
+        const {id, name, description, creatorId, projectId, userId, invited, interested} = req.query
+        const criteria = {id, name, description, creatorId, projectId}
+        const relatedCriteria = {userId, invited, interested} 
+        const teams = await teamService.query(criteria, relatedCriteria)
         res.send(teams)
     } catch (error) {
         res.status(404).end()
@@ -74,6 +58,4 @@ module.exports = {
     deleteTeam,
     addTeam,
     updateTeam,
-    getTeamFull,
-    getTeamsFull
 }

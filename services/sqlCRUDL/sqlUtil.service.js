@@ -1,4 +1,4 @@
-const DBService = require('../services/DBService')
+const DBService = require('../DBService')
 
 module.exports = {
     getSqlTimestamp,
@@ -48,7 +48,7 @@ async function removeMultiWhere(tableName, criteria, except) {
 }
 
 function getWhereSql(criteria, txtFields = ['name', 'description']) {
-    criteria = {...criteria}
+    criteria = { ...criteria }
     if (typeof criteria !== 'object') return ''
     if (!Object.keys(criteria).length) return ''
 
@@ -60,8 +60,22 @@ function getWhereSql(criteria, txtFields = ['name', 'description']) {
         whereSql += txtFieldsStr
     }
     else delete criteria.txt
-
-    const criteriaStr = Object.keys(criteria).map(key => `${key} = "${criteria[key]}"`).join(' AND ')
+    const criteriaKeys = Object.keys(criteria).filter(key => criteria[key])
+    const criteriaStr = criteriaKeys.map(key =>{
+        let value
+        switch (criteria[key]) {
+            case true:
+                value = 1
+                break;
+            case false:
+                value = 0
+                break;        
+            default:
+                value = criteria[key]
+                break;
+        }
+        return `${key} = "${criteria[key]}"`
+    }).join(' AND ')
     if (criteriaStr) whereSql += ` AND (${criteriaStr})`
 
     return whereSql
@@ -70,7 +84,7 @@ function getWhereSql(criteria, txtFields = ['name', 'description']) {
 
 function getValueStrs(entity, fieldNames, txtFields) {
     const values = fieldNames.map(fieldName => {
-        const isTxt = txtFields.includes(fieldName)
+        const isTxt = txtFields?.includes(fieldName)
         return isTxt ? `"${entity[fieldName]}"` : entity[fieldName]
     })
     return values

@@ -1,4 +1,3 @@
-
 module.exports = class EntitiesRelationshipService {
     constructor(mainEntityCRUDService, relatedEntityCRUDService, relationshipKeyInEntity, entityKeyInRelated) {
         this.entityCRUDService = mainEntityCRUDService
@@ -10,13 +9,15 @@ module.exports = class EntitiesRelationshipService {
         this.entityKey = entityKeyInRelated
     }
 
-    query = async (criteria) => {
+    query = async (criteria, relatedCriteria = {}) => {
+        const isRelatedFilter = !!Object.values(relatedCriteria).length
         try {
             const entities = await this.entityCRUDService.query(criteria)
             for await (const entity of entities) {
-                entity[this.relationshipKey] = await this.relatedCRUDService.query({ [this.entityKey]: entity.id })
+                relatedCriteria = {...relatedCriteria, [this.entityKey]: entity.id}
+                entity[this.relationshipKey] = await this.relatedCRUDService.query(relatedCriteria)
             }
-            return entities
+            return !isRelatedFilter? entities : entities.filter(entity => entity[this.relationshipKey]?.length > 0)
         } catch (error) {
             throw error
         }
@@ -35,8 +36,11 @@ module.exports = class EntitiesRelationshipService {
     add = async (entity) => {
         try {
             entity = await this.entityCRUDService.add(entity)
-            entity[this.relationshipKey].forEach(relatedEntity => relatedEntity[this.entityKey] = entity.id);
-            entity[this.relationshipKey] = await this.relatedCRUDService.addMany(entity[this.relationshipKey], { [this.entityKey]: entity.id })
+            const relatedEntities = entity[this.relationshipKey]
+            for (const relatedEntity of relatedEntities) {
+                relatedEntity[this.entityKey] = entity.id;
+            }
+            entity[this.relationshipKey] = await this.relatedCRUDService.addMany(relatedEntities, { [this.entityKey]: entity.id })
             return entity
         } catch (error) {
             throw error

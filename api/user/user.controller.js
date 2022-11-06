@@ -3,25 +3,41 @@ const userService = require('./user.service')
 const logger = require('../../services/logger.service')
 
 async function getUser(req, res) {
-    const user = await userService.getById(req.params.id)
-    res.send(user)
+    try {
+        const user = await userService.getById(req.params.id)
+        res.send(user)
+    } catch (error) {
+        res.status(404).end()
+    }
 }
-  
+
 async function getUsers(req, res) {
-    const users = await userService.query(req.query)
-    logger.debug(users);
-    res.send(users)
+    try {
+        const users = await userService.query(req.query)
+        logger.dev(users);
+        res.send(users)
+    } catch (error) {
+        res.status(404).end()
+    }
 }
 
 async function deleteUser(req, res) {
-    await userService.remove(req.params.id)
-    res.end()
+    try {
+        await userService.remove(req.params.id)
+        res.status(200).end()
+    } catch (error) {
+        res.status(404).end()
+    }
 }
 
 async function updateUser(req, res) {
-    const user = req.body;
-    await userService.update(user)
-    res.send(user)
+    try {
+        const user = req.body;
+        await userService.update(user)
+        res.send(user)
+    } catch (error) {
+        res.status(404).end()   
+    }
 }
 
 module.exports = {
