@@ -9,7 +9,6 @@ async function getProject(req, res) {
 async function getProjects(req, res) {
     console.log(req.query);
     const projects = await projectService.query(req.query)
-    logger.debug(projects);
     res.send(projects)
 }
 

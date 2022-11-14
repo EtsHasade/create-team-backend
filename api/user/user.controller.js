@@ -1,5 +1,4 @@
 const userService = require('./user.service')
-// const teamService = require('../team/team.service')
 const logger = require('../../services/logger.service')
 
 async function getUser(req, res) {
@@ -14,7 +13,6 @@ async function getUser(req, res) {
 async function getUsers(req, res) {
     try {
         const users = await userService.query(req.query)
-        logger.dev(users);
         res.send(users)
     } catch (error) {
         res.status(404).end()
